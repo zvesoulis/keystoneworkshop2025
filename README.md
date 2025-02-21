@@ -6,8 +6,7 @@ This event will be held **Sunday, March 2 2025 15:00-17:30 Mountain Time, Keysto
 
 Materials can be divided into the following categories:  
 - Articles for background reading  
-- Instructions for pre-session software installation  
+- Instructions for pre-session software installation and prepartion
 - Session handbook  
 - Slides  
-- Sample data  
-- Sample code  
+- Sample data and code
