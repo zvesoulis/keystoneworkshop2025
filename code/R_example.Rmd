@@ -1,0 +1,158 @@
+---
+title: "Data Manipulation and Visualization in R for NICU Data"
+author: "Zachary Vesoulis"
+date: "2025-02-21"
+output: html_document
+---
+## Overview
+
+This R Markdown document is part of the pre-conference workshop "Artificial Intelligence in Critical Care Medicine" presented at the 41st Annual CNH Symposium
+
+*License: GPL-3.0*
+
+## Setup
+First, we'll load the required packages for data visualization.  If they aren't already installed on your system, this code will handle the installation.
+
+
+```{r setup}
+
+# List of required packages
+required_packages <- c("ggplot2", "gridExtra", "fst")
+
+# Function to install missing packages
+install_if_missing <- function(packages) {
+  missing_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+  if (length(missing_packages) > 0) {
+    message("Installing missing packages: ", paste(missing_packages, collapse = ", "))
+    install.packages(missing_packages)
+  }
+}
+
+# Install missing packages
+install_if_missing(required_packages)
+
+# Load the required packages
+library(ggplot2)
+library(gridExtra)
+library(fst)
+
+# Set knitr options
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Data Loading
+
+This tutorial uses data from the UVA dataverse library, specifically from Niestroy et al.'s study: "Discovery of signatures of fatal neonatal illness in vital signs using highly comparative time-series analysis" (<https://doi.org/10.18130/V3/VJXODP>).
+
+```{r load_data}
+# Load the modified version of NICU_1007_vitals.mat
+library(fst)
+newTable <- read_fst("/Users/vesoulis_z/Downloads/pas_workshop2023-main/code/newTable.fst")
+```
+
+## Initial Data Visualization
+
+Since R cannot efficiently plot the entire dataset, we'll create a smaller subset covering 96 hours (172,801 samples).
+
+```{r initial_plot}
+# Create subset
+f <- newTable[300000:472800, ]
+
+# Basic time series plot
+ggplot(f, aes(x=TIME, y=HR)) +
+  geom_line() +
+  labs(title="Heart Rate Time Series",
+       x="Time",
+       y="Heart Rate")
+
+# Add trend line using GAM
+ggplot(f, aes(x=TIME, y=HR)) +
+  geom_line() +
+  stat_smooth() +
+  labs(title="Heart Rate Time Series with Trend",
+       x="Time",
+       y="Heart Rate")
+```
+
+## SpO2 Distribution Analysis
+
+We'll analyze SpO2 distributions at three distinct periods in the patient's life. This infant was born at 24 weeks gestation, with recording starting at approximately 1.8 days of life.
+
+```{r create_timepoints}
+# Create time period subsets
+# 24 hours at 2.6 days old (24 weeks PMA)
+time1 <- newTable[17000:60200, ]
+
+# 24 hours at 71 days old (34 weeks PMA)
+time2 <- newTable[1490000:1533200, ]
+
+# 24 hours at 285 days old (64 weeks PMA)
+time3 <- newTable[6100000:6143200, ]
+```
+
+### Basic Histograms
+
+First, let's look at basic histograms for each time period.
+
+```{r basic_histograms}
+par(mfrow=c(3,1))
+hist(time1$SPO2.PCT, main="2.6 days old (24 weeks PMA)")
+hist(time2$SPO2.PCT, main="71 days old (34 weeks PMA)")
+hist(time3$SPO2.PCT, main="285 days old (64 weeks PMA)")
+```
+
+### Enhanced Visualization using ggplot
+
+Now, let's create more polished histograms with consistent axes and styling.
+
+```{r enhanced_histograms}
+# Create individual plots
+p1 <- ggplot(time1, aes(x=SPO2.PCT)) +
+  geom_histogram(color="black", fill="white", binwidth = 1) +
+  xlim(25,100) +
+  ggtitle("2.6 days old (24 weeks PMA)") +
+  xlab(expression(SpO[2]~Percent))
+
+p2 <- ggplot(time2, aes(x=SPO2.PCT)) +
+  geom_histogram(color="black", fill="lightblue", binwidth = 1) +
+  xlim(25,100) +
+  ggtitle("71 days old (34 weeks PMA)") +
+  xlab(expression(SpO[2]~Percent))
+
+p3 <- ggplot(time3, aes(x=SPO2.PCT)) +
+  geom_histogram(color="black", fill="lightgreen", binwidth = 1) +
+  xlim(25,100) +
+  ggtitle("285 days old (64 weeks PMA)") +
+  xlab(expression(SpO[2]~Percent))
+
+# Arrange plots in a grid
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+### Kernel Density Plots
+
+Finally, let's create a kernel density plot that overlays all three distributions. This requires the data to be in long format, with an additional column for the time period.
+
+```{r density_plot}
+# Load the pre-prepared long format data
+df_long <- readRDS("df_long.rds")
+
+# Create density plot
+ggplot(df_long, aes(SPO2.PCT, fill=period)) +
+  geom_density(adjust=2, alpha=0.4) +
+  xlim(25,100) +
+  guides(fill=guide_legend(title="PMA")) +
+  scale_fill_discrete(labels=c('24 weeks','34 weeks','64 weeks')) +
+  xlab(expression(SpO[2]~Percent)) +
+  labs(title="SpO2 Distribution Across Different PMAs",
+       y="Density")
+```
+
+## Clinical Interpretation
+
+The visualizations reveal several interesting patterns:
+
+1.  Early in the course (24 weeks PMA), SpO2 values are well-controlled, likely due to mechanical ventilation.
+2.  During the middle period (34 weeks PMA), there's more variability in SpO2 values, possibly related to BPD development.
+3.  Later in the course (64 weeks PMA), the distribution shows patterns typical of BPD spells.
